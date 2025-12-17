@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-HK">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>資助中學查詢系統</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft JhengHei', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f5f5f5;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c6c91, #2c3e50);
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 i {
+            color: #ffcc00;
+        }
+
+        .header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            max-width: 800px;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Accordion Styles */
+        .accordion-panel {
+            width: 400px;
+            background-color: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+            z-index: 500;
+            transition: transform 0.3s ease;
+        }
+
+        .accordion {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .accordion-item {
+            margin-bottom: 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+        }
+
+        .accordion-header {
+            background-color: #2c6c91;
+            color: white;
+            padding: 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .accordion-header:hover {
+            background-color: #1a5c7a;
+        }
+
+        .accordion-header.active {
+            background-color: #2c3e50;
+        }
+
+        .accordion-content {
+            background-color: white;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .accordion-content.active {
+            padding: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* District Accordion Styles */
+        .district-accordion {
+            margin-bottom: 10px;
+        }
+
+        .district-header {
+            background-color: #4a90e2;
+            color: white;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            transition: background-color 0.2s;
+        }
+
+        .district-header:hover {
+            background-color: #3a80d2;
+        }
+
+        .district-header.active {
+            background-color: #2c6c91;
+        }
+
+        .district-content {
+            background-color: #f8f9fa;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            border-radius: 0 0 6px 6px;
+        }
+
+        .district-content.active {
+            padding: 15px;
+            overflow-y: auto;
+            min-height: fit-content;
+        }
+
+        /* Finance Type Accordion Styles */
+        .finance-accordion {
+            margin-bottom: 8px;
+        }
+
+        .finance-header {
+            background-color: #27ae60;
+            color: white;
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            border-radius: 5px;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+            transition: background-color 0.2s;
+        }
+
+        .finance-header:hover {
+            background-color: #219653;
+        }
+
+        .finance-header.active {
+            background-color: #1e8449;
+        }
+
+        .finance-content {
+            background-color: #f1f8f4;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            border-radius: 0 0 5px 5px;
+        }
+
+        .finance-content.active {
+            padding: 12px;
+            overflow-y: auto;
+            min-height: fit-content;
+        }
+
+        /* Category Accordion Styles */
+        .category-accordion {
+            margin-bottom: 6px;
+        }
+
+        .category-header {
+            background-color: #9b59b6;
+            color: white;
+            padding: 8px 10px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .category-header:hover {
+            background-color: #8e44ad;
+        }
+
+        .category-header.active {
+            background-color: #7d3c98;
+        }
+
+        .category-content {
+            background-color: #f5eef8;
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            border-radius: 0 0 4px 4px;
+        }
+
+        .category-content.active {
+            padding: 10px;
+            overflow-y: auto;
+            min-height: 300px;
+        }
+
+        .facility-item {
+            background-color: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .facility-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #4a90e2;
+        }
+
+        .facility-item.active {
+            border-color: #ffcc00;
+            background-color: #fff9e6;
+        }
+
+        .facility-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .facility-details {
+            font-size: 0.9rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .facility-detail-item {
+            margin-bottom: 5px;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .facility-detail-item i {
+            color: #2c6c91;
+            margin-right: 8px;
+            margin-top: 3px;
+            width: 16px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .btn {
+            background-color: #2c6c91;
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            background-color: #1a5c7a;
+        }
+
+        .btn.active {
+            background-color: #2c3e50;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+        }
+
+        .btn-success:hover {
+            background-color: #219653;
+        }
+
+        .info-box {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #2c6c91;
+            font-size: 0.9rem;
+        }
+
+        .info-box h4 {
+            margin-bottom: 8px;
+            color: #2c3e50;
+        }
+
+        /* Search Box */
+        .search-box {
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2c6c91;
+        }
+
+        /* Map Styles */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Footer Styles */
+        .footer {
+            background-color: #2c3e50;
+            color: white;
+            padding: 6px 20px;
+            text-align: center;
+            font-size: 0.85rem;
+            border-top: 1px solid #4a6491;
+            z-index: 1000;
+        }
+
+        .footer-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .footer-links a {
+            color: #ecf0f1;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #3498db;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .accordion-panel {
+                width: 100%;
+                height: 40vh;
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
+
+            .header p {
+                font-size: 0.85rem;
+            }
+
+            .accordion-header {
+                padding: 12px 15px;
+                font-size: 0.95rem;
+            }
+
+            .btn {
+                padding: 10px 15px;
+                font-size: 0.95rem;
+            }
+
+            .footer-content {
+                flex-direction: column;
+                gap: 8px;
+                text-align: center;
+            }
+
+            .footer-links {
+                justify-content: center;
+            }
+        }
+
+        /* For very small screens like iPhone SE */
+        @media (max-width: 375px) {
+            .header {
+                padding: 12px 15px;
+            }
+
+            .header h1 {
+                font-size: 1.2rem;
+            }
+
+            .header p {
+                font-size: 0.8rem;
+            }
+
+            .accordion {
+                padding: 10px;
+            }
+
+            .accordion-header {
+                padding: 10px 12px;
+                font-size: 0.9rem;
+            }
+
+            .accordion-content.active {
+                padding: 15px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+
+            .footer {
+                padding: 10px 15px;
+                font-size: 0.8rem;
+            }
+        }
+
+        /* Stats Display */
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding: 10px 0;
+            border-top: 1px dashed #ddd;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 1.2rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.8rem;
+        }
+
+        /* Toggle panel button for mobile */
+        .panel-toggle {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .panel-toggle {
+                display: block;
+            }
+
+            .accordion-panel.collapsed {
+                transform: translateY(-100%);
+                height: 0;
+                overflow: hidden;
+            }
+        }
+
+        /* Legend */
+        .legend {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border-radius: 3px;
+        }
+
+        /* Loading indicator */
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2c6c91;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Coordinates display */
+        .coordinates {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            z-index: 500;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* District Counter */
+        .district-counter {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 12px;
+            padding: 2px 10px;
+            font-size: 0.8rem;
+            margin-left: 8px;
+        }
+
+        .facility-counter {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 10px;
+            padding: 1px 8px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1><i class="fas fa-school"></i> 資助中學查詢系統</h1>
+        <p>查詢全港各區資助中學資訊，包括地址、學校類型、宗教、聯絡方式等</p>
+    </div>
+
+    <div class="container">
+        <button class="panel-toggle" id="panelToggle" style="display:none">
+            <i class="fas fa-bars"></i> 控制面板
+        </button>
+
+        <div class="accordion-panel" id="accordionPanel">
+            <div class="accordion">
+                <!-- Schools List -->
+                <div class="accordion-item">
+                    <div class="accordion-header active" id="headerSchools">
+                        <span><i class="fas fa-list"></i> 資助中學列表</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="accordion-content active" id="contentSchools">
+                        <div class="search-box">
+                            <input type="text" id="searchInput" class="search-input" placeholder="搜尋學校名稱或地址...">
+                        </div>
+
+                        <div class="info-box">
+                            <h4><i class="fas fa-info-circle"></i> 使用說明</h4>
+                            <p>1. 點擊地區展開查看該區的學校</p>
+                            <p>2. 點擊學校查看詳細資訊</p>
+                            <p>3. 使用搜尋框快速查找特定學校</p>
+                            <p>4. 點擊地圖上的標記查看更多詳情</p>
+                        </div>
+
+                        <div class="stats">
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalSchools">0</div>
+                                <div class="stat-label">總數</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalDistricts">0</div>
+                                <div class="stat-label">地區</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="visibleSchools">0</div>
+                                <div class="stat-label">顯示中</div>
+                            </div>
+                        </div>
+
+                        <div id="schoolsList">
+                            <!-- Schools will be loaded here with grouping: 分區 -> 資助種類 (宗教 / 學校授課時間 / 就讀學生性別) -> 設施名稱 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Settings -->
+                <div class="accordion-item">
+                    <div class="accordion-header" id="headerSettings">
+                        <span><i class="fas fa-cog"></i> 地圖設定</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="accordion-content" id="contentSettings">
+                        <div class="control-group">
+                            <label><i class="fas fa-map"></i> 底圖樣式</label>
+                            <select id="baseMapSelect" class="btn" style="padding: 10px;">
+                                <option value="OpenStreetMap">OpenStreetMap</option>
+                                <option value="地形圖">地形圖</option>
+                                <option value="衛星圖像">衛星圖像</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label><i class="fas fa-search"></i> 縮放級別</label>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <button class="btn" id="zoomInBtn" style="width: auto; flex: 1;">
+                                    <i class="fas fa-search-plus"></i> 放大
+                                </button>
+                                <button class="btn" id="zoomOutBtn" style="width: auto; flex: 1;">
+                                    <i class="fas fa-search-minus"></i> 縮小
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <label><i class="fas fa-location-arrow"></i> 重置視圖</label>
+                            <button class="btn" id="resetViewBtn">
+                                <i class="fas fa-globe-asia"></i> 重置至香港全境
+                            </button>
+                        </div>
+
+                        <div class="legend">
+                            <label><i class="fas fa-layer-group"></i> 圖例</label>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #ff6b6b;"></div>
+                                <span>資助中學</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color" style="background-color: #4a90e2;"></div>
+                                <span>已選取學校</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>正在載入資助中學數據...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-copyright">
+                &copy; 2024 資助中學查詢系統<br />數據由香港政府提供
+            </div>
+        </div>
+    </footer>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize variables
+        let map;
+        let schoolsLayer;
+        let selectedSchool = null;
+        let allSchools = [];
+        let groupedData = {};
+
+        // Add base layers
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors'
+        });
+
+        const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        // Add layer control
+        const baseLayers = {
+            "OpenStreetMap": osmLayer,
+            "地形圖": topoLayer,
+            "衛星圖像": satelliteLayer
+        };
+        var currentTileLayer = baseLayers["OpenStreetMap"];
+
+        // Initialize map when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            initMap();
+            setupAccordion();
+            setupEventListeners();
+            loadSchoolsData();
+
+            // Handle mobile panel toggle
+            const panelToggle = document.getElementById('panelToggle');
+            const accordionPanel = document.getElementById('accordionPanel');
+
+            panelToggle.addEventListener('click', function () {
+                accordionPanel.classList.toggle('collapsed');
+                panelToggle.innerHTML = accordionPanel.classList.contains('collapsed')
+                    ? '<i class="fas fa-bars"></i> 顯示控制面板'
+                    : '<i class="fas fa-bars"></i> 隱藏控制面板';
+            });
+        });
+
+        // Initialize the map
+        function initMap() {
+            // Set initial view to Hong Kong
+            map = L.map('map', { zoomControl: false }).setView([22.3193, 114.1694], 11);
+
+            // Add default layer
+            currentTileLayer.addTo(map);
+        }
+
+        // Setup accordion functionality
+        function setupAccordion() {
+            const accordionHeaders = document.querySelectorAll('.accordion-header');
+
+            accordionHeaders.forEach(header => {
+                header.addEventListener('click', function (e) {
+                    const content = this.nextElementSibling;
+                    const isActive = this.classList.contains('active');
+
+                    // Close all accordion items
+                    accordionHeaders.forEach(h => {
+                        h.classList.remove('active');
+                        h.querySelector('.fa-chevron-down').style.transform = 'rotate(0deg)';
+                    });
+
+                    document.querySelectorAll('.accordion-content').forEach(c => {
+                        c.classList.remove('active');
+                    });
+
+                    // Open clicked item if it was not active
+                    if (!isActive) {
+                        this.classList.add('active');
+                        content.classList.add('active');
+                        this.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                    }
+
+                    map.invalidateSize();
+                });
+            });
+        }
+
+        // Setup button event listeners
+        function setupEventListeners() {
+            // Map controls
+            document.getElementById('zoomInBtn').addEventListener('click', function () {
+                map.zoomIn();
+            });
+
+            document.getElementById('zoomOutBtn').addEventListener('click', function () {
+                map.zoomOut();
+            });
+
+            document.getElementById('resetViewBtn').addEventListener('click', function () {
+                map.setView([22.3193, 114.1694], 11);
+            });
+
+            // Base map selector
+            document.getElementById('baseMapSelect').addEventListener('change', function (e) {
+                // Remove current layer
+                map.removeLayer(currentTileLayer);
+
+                // Add new layer
+                currentTileLayer = baseLayers[e.target.value];
+                currentTileLayer.addTo(map);
+            });
+
+            // Search input
+            document.getElementById('searchInput').addEventListener('input', function (e) {
+                filterSchools(e.target.value);
+            });
+        }
+
+        // Load Schools data from the WFS service
+        async function loadSchoolsData() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.style.display = 'block';
+
+            try {
+                // Using the specified API endpoint for aided secondary schools
+                const apiUrl = 'https://portal.csdi.gov.hk/server/services/common/edb_rcd_1629267205213_53323/MapServer/WFSServer?service=wfs&request=GetFeature&typenames=AIDED_SES&outputFormat=geojson';
+
+                const response = await fetch(apiUrl);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                allSchools = data.features || [];
+
+                // Group schools by district -> finance type -> category -> schools
+                groupSchoolsByHierarchy();
+
+                // Update stats
+                updateStats();
+
+                // Render accordion list
+                renderSchoolsList();
+
+                // Create markers on map
+                createMapMarkers();
+
+            } catch (error) {
+                console.error('Error loading Schools data:', error);
+                alert('無法載入資助中學數據，請檢查網絡連接或稍後再試。');
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        // Group schools by hierarchy: 分區 -> 資助種類 -> 分類 (宗教/學校授課時間/就讀學生性別) -> 學校
+        function groupSchoolsByHierarchy() {
+            groupedData = {};
+
+            allSchools.forEach(school => {
+                const props = school.properties;
+                const district = props.分區 || '未分類';
+                const financeType = props.資助種類 || '未分類';
+                
+                // Create category string combining 宗教, 學校授課時間, 就讀學生性別
+                const religion = props.宗教 || '未指定';
+                const session = props.學校授課時間 || '未指定';
+                const gender = props.就讀學生性別 || '未指定';
+                const category = `${religion} / ${session} / ${gender}`;
+
+                // Initialize district if not exists
+                if (!groupedData[district]) {
+                    groupedData[district] = {
+                        name: district,
+                        financeTypes: {},
+                        count: 0
+                    };
+                }
+
+                // Initialize finance type if not exists
+                if (!groupedData[district].financeTypes[financeType]) {
+                    groupedData[district].financeTypes[financeType] = {
+                        name: financeType,
+                        categories: {},
+                        count: 0
+                    };
+                }
+
+                // Initialize category if not exists
+                if (!groupedData[district].financeTypes[financeType].categories[category]) {
+                    groupedData[district].financeTypes[financeType].categories[category] = {
+                        name: category,
+                        schools: [],
+                        count: 0
+                    };
+                }
+
+                // Add school to category
+                groupedData[district].financeTypes[financeType].categories[category].schools.push(school);
+                groupedData[district].financeTypes[financeType].categories[category].count++;
+                groupedData[district].financeTypes[financeType].count++;
+                groupedData[district].count++;
+            });
+        }
+
+        // Update statistics display
+        function updateStats() {
+            const totalSchools = allSchools.length;
+            const totalDistricts = Object.keys(groupedData).length;
+
+            document.getElementById('totalSchools').textContent = totalSchools;
+            document.getElementById('totalDistricts').textContent = totalDistricts;
+            document.getElementById('visibleSchools').textContent = totalSchools;
+        }
+
+        // Render schools list in accordion with hierarchical grouping
+        function renderSchoolsList() {
+            const container = document.getElementById('schoolsList');
+            container.innerHTML = '';
+
+            // Sort districts alphabetically
+            const sortedDistricts = Object.keys(groupedData).sort();
+
+            sortedDistricts.forEach(districtName => {
+                const district = groupedData[districtName];
+                
+                // Create district accordion item
+                const districtAccordion = document.createElement('div');
+                districtAccordion.className = 'district-accordion';
+                districtAccordion.innerHTML = `
+                    <div class="district-header">
+                        <span>
+                            ${district.name}
+                            <span class="facility-counter">${district.count}</span>
+                        </span>
+                        <i class="fas fa-chevron-down"></i>
+                    </div>
+                    <div class="district-content"></div>
+                `;
+
+                container.appendChild(districtAccordion);
+
+                // Add click event to district header
+                const districtHeader = districtAccordion.querySelector('.district-header');
+                const districtContent = districtAccordion.querySelector('.district-content');
+
+                districtHeader.addEventListener('click', function () {
+                    const isActive = this.classList.contains('active');
+
+                    // Toggle active class
+                    this.classList.toggle('active');
+                    districtContent.classList.toggle('active');
+
+                    // Rotate icon
+                    const icon = this.querySelector('.fa-chevron-down');
+                    icon.style.transform = isActive ? 'rotate(0deg)' : 'rotate(180deg)';
+                });
+
+                // Add finance type accordions
+                const financeTypesContainer = document.createElement('div');
+                const financeTypeNames = Object.keys(district.financeTypes).sort();
+                
+                financeTypeNames.forEach(financeTypeName => {
+                    const financeType = district.financeTypes[financeTypeName];
+                    
+                    // Create finance type accordion item
+                    const financeAccordion = document.createElement('div');
+                    financeAccordion.className = 'finance-accordion';
+                    financeAccordion.innerHTML = `
+                        <div class="finance-header">
+                            <span>
+                                ${financeType.name}
+                                <span class="facility-counter">${financeType.count}</span>
+                            </span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="finance-content"></div>
+                    `;
+
+                    financeTypesContainer.appendChild(financeAccordion);
+
+                    // Add click event to finance type header
+                    const financeHeader = financeAccordion.querySelector('.finance-header');
+                    const financeContent = financeAccordion.querySelector('.finance-content');
+
+                    financeHeader.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        const isActive = this.classList.contains('active');
+
+                        // Toggle active class
+                        this.classList.toggle('active');
+                        financeContent.classList.toggle('active');
+
+                        // Rotate icon
+                        const icon = this.querySelector('.fa-chevron-down');
+                        icon.style.transform = isActive ? 'rotate(0deg)' : 'rotate(180deg)';
+                    });
+
+                    // Add category accordions
+                    const categoriesContainer = document.createElement('div');
+                    const categoryNames = Object.keys(financeType.categories).sort();
+                    
+                    categoryNames.forEach(categoryName => {
+                        const category = financeType.categories[categoryName];
+                        
+                        // Create category accordion item
+                        const categoryAccordion = document.createElement('div');
+                        categoryAccordion.className = 'category-accordion';
+                        categoryAccordion.innerHTML = `
+                            <div class="category-header">
+                                <span>
+                                    ${category.name}
+                                    <span class="facility-counter">${category.count}</span>
+                                </span>
+                                <i class="fas fa-chevron-down"></i>
+                            </div>
+                            <div class="category-content"></div>
+                        `;
+
+                        categoriesContainer.appendChild(categoryAccordion);
+
+                        // Add click event to category header
+                        const categoryHeader = categoryAccordion.querySelector('.category-header');
+                        const categoryContent = categoryAccordion.querySelector('.category-content');
+
+                        categoryHeader.addEventListener('click', function (e) {
+                            e.stopPropagation();
+                            const isActive = this.classList.contains('active');
+
+                            // Toggle active class
+                            this.classList.toggle('active');
+                            categoryContent.classList.toggle('active');
+
+                            // Rotate icon
+                            const icon = this.querySelector('.fa-chevron-down');
+                            icon.style.transform = isActive ? 'rotate(0deg)' : 'rotate(180deg)';
+                        });
+
+                        // Add school items
+                        const schoolsContainer = document.createElement('div');
+                        category.schools.forEach(school => {
+                            const schoolItem = createSchoolItem(school);
+                            schoolsContainer.appendChild(schoolItem);
+                        });
+
+                        categoryContent.appendChild(schoolsContainer);
+                    });
+
+                    financeContent.appendChild(categoriesContainer);
+                });
+
+                districtContent.appendChild(financeTypesContainer);
+            });
+
+            // Setup school item click events
+            setupSchoolItemEvents();
+        }
+
+        // Create a school item element
+        function createSchoolItem(school) {
+            const props = school.properties;
+            const schoolItem = document.createElement('div');
+            schoolItem.className = 'facility-item';
+            schoolItem.dataset.objectId = props.OBJECTID;
+
+            schoolItem.innerHTML = `
+                <div class="facility-name">${props.設施名稱}</div>
+                <div class="facility-details">
+                    <div class="facility-detail-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span>${props.地址}</span>
+                    </div>
+                    <div class="facility-detail-item">
+                        <i class="fas fa-church"></i>
+                        <span>宗教: ${props.宗教}</span>
+                    </div>
+                    <div class="facility-detail-item">
+                        <i class="fas fa-clock"></i>
+                        <span>授課時間: ${props.學校授課時間}</span>
+                    </div>
+                    <div class="facility-detail-item">
+                        <i class="fas fa-venus-mars"></i>
+                        <span>學生性別: ${props.就讀學生性別}</span>
+                    </div>
+                    <div class="facility-detail-item">
+                        <i class="fas fa-phone"></i>
+                        <span>電話: ${props.聯絡電話 || '未提供'}</span>
+                    </div>
+                </div>
+            `;
+
+            return schoolItem;
+        }
+
+        // Setup school item click events
+        function setupSchoolItemEvents() {
+            document.querySelectorAll('.facility-item').forEach(item => {
+                item.addEventListener('click', function () {
+                    // Remove active class from all school items
+                    document.querySelectorAll('.facility-item').forEach(i => {
+                        i.classList.remove('active');
+                    });
+
+                    // Add active class to clicked item
+                    this.classList.add('active');
+
+                    // Find and highlight the corresponding marker
+                    const objectId = parseInt(this.dataset.objectId);
+                    const school = allSchools.find(s => s.properties.OBJECTID === objectId);
+
+                    if (school) {
+                        selectSchool(school);
+                    }
+                });
+            });
+        }
+
+        // Create markers on the map
+        function createMapMarkers() {
+            if (schoolsLayer) {
+                map.removeLayer(schoolsLayer);
+            }
+
+            schoolsLayer = L.layerGroup().addTo(map);
+
+            allSchools.forEach(school => {
+                const props = school.properties;
+                const coords = school.geometry.coordinates;
+
+                // Create marker
+                const marker = L.circleMarker([coords[1], coords[0]], {
+                    radius: 10,
+                    fillColor: '#ff6b6b',
+                    color: '#c0392b',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                });
+
+                // Create popup content
+                const popupContent = `
+                    <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50">${props.設施名稱}</div>
+                    <div><strong>地區:</strong> ${props.分區}</div>
+                    <div><strong>地址:</strong> ${props.地址}</div>
+                    <div><strong>宗教:</strong> ${props.宗教}</div>
+                    <div><strong>授課時間:</strong> ${props.學校授課時間}</div>
+                    <div><strong>學生性別:</strong> ${props.就讀學生性別}</div>
+                    <div><strong>資助種類:</strong> ${props.資助種類}</div>
+                    <div><strong>聯絡電話:</strong> ${props.聯絡電話 || '未提供'}</div>
+                    <div><strong>網頁:</strong> ${props.網頁 ? `<a href="${props.網頁}" target="_blank">${props.網頁}</a>` : '未提供'}</div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                        <small class="text-muted"><strong>最後更新:</strong> ${props.Last_Updated_Date___最後更新日期 || '未提供'}</small>
+                    </div>
+                `;
+
+                marker.bindPopup(popupContent);
+
+                // Add click event
+                marker.on('click', function () {
+                    selectSchool(school);
+
+                    // Find and highlight the corresponding list item
+                    document.querySelectorAll('.facility-item').forEach(item => {
+                        item.classList.remove('active');
+                        if (parseInt(item.dataset.objectId) === props.OBJECTID) {
+                            item.classList.add('active');
+                            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    });
+                });
+
+                schoolsLayer.addLayer(marker);
+            });
+        }
+
+        // Select and highlight a school
+        function selectSchool(school) {
+            const props = school.properties;
+            const coords = school.geometry.coordinates;
+
+            // Clear previous selection
+            if (selectedSchool) {
+                map.removeLayer(selectedSchool);
+                selectedSchool = null;
+            }
+
+            // Create highlighted marker
+            selectedSchool = L.circleMarker([coords[1], coords[0]], {
+                radius: 12,
+                fillColor: '#4a90e2',
+                color: '#2c6c91',
+                weight: 3,
+                opacity: 1,
+                fillOpacity: 0.9
+            }).addTo(map);
+
+            // Pan to the selected school
+            map.setView([coords[1], coords[0]], 14);
+
+            // Open popup
+            selectedSchool.bindPopup(`
+                <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50; font-size: 1.1em">${props.設施名稱}</div>
+                <div><strong>地區:</strong> ${props.分區}</div>
+                <div><strong>地址:</strong> ${props.地址}</div>
+                <div><strong>宗教:</strong> ${props.宗教}</div>
+                <div><strong>授課時間:</strong> ${props.學校授課時間}</div>
+                <div><strong>學生性別:</strong> ${props.就讀學生性別}</div>
+                <div><strong>資助種類:</strong> ${props.資助種類}</div>
+                <div><strong>聯絡電話:</strong> <a href="tel:${props.聯絡電話}">${props.聯絡電話 || '未提供'}</a></div>
+                <div><strong>網頁:</strong> ${props.網頁 ? `<a href="${props.網頁}" target="_blank">${props.網頁}</a>` : '未提供'}</div>
+                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                    <small class="text-muted"><strong>最後更新:</strong> ${props.Last_Updated_Date___最後更新日期 || '未提供'}</small>
+                </div>
+            `).openPopup();
+
+            // Show notification
+            showNotification(`已選取: ${props.設施名稱}`);
+        }
+
+        // Filter schools based on search input
+        function filterSchools(searchTerm) {
+            const searchLower = searchTerm.toLowerCase().trim();
+
+            if (!searchLower) {
+                // Show all schools
+                document.querySelectorAll('.facility-item').forEach(item => {
+                    item.style.display = 'block';
+                });
+
+                document.querySelectorAll('.district-accordion').forEach(district => {
+                    district.style.display = 'block';
+                });
+
+                document.getElementById('visibleSchools').textContent = allSchools.length;
+                return;
+            }
+
+            let visibleCount = 0;
+
+            // Filter school items
+            document.querySelectorAll('.facility-item').forEach(item => {
+                const schoolName = item.querySelector('.facility-name').textContent.toLowerCase();
+                const details = item.querySelector('.facility-details').textContent.toLowerCase();
+
+                if (schoolName.includes(searchLower) || details.includes(searchLower)) {
+                    item.style.display = 'block';
+                    visibleCount++;
+
+                    // Ensure all parent accordions are visible and expanded
+                    let currentElement = item.parentElement;
+                    while (currentElement) {
+                        if (currentElement.classList.contains('category-content')) {
+                            const categoryHeader = currentElement.previousElementSibling;
+                            if (categoryHeader && !categoryHeader.classList.contains('active')) {
+                                categoryHeader.classList.add('active');
+                                currentElement.classList.add('active');
+                                categoryHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                            }
+                        } else if (currentElement.classList.contains('finance-content')) {
+                            const financeHeader = currentElement.previousElementSibling;
+                            if (financeHeader && !financeHeader.classList.contains('active')) {
+                                financeHeader.classList.add('active');
+                                currentElement.classList.add('active');
+                                financeHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                            }
+                        } else if (currentElement.classList.contains('district-content')) {
+                            const districtHeader = currentElement.previousElementSibling;
+                            if (districtHeader && !districtHeader.classList.contains('active')) {
+                                districtHeader.classList.add('active');
+                                currentElement.classList.add('active');
+                                districtHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                            }
+                        }
+                        currentElement = currentElement.parentElement;
+                    }
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // Update visible count
+            document.getElementById('visibleSchools').textContent = visibleCount;
+        }
+
+        // Show temporary notification
+        function showNotification(message) {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background-color: #2c6c91;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 5px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 10000;
+                font-weight: 500;
+                max-width: 300px;
+                animation: fadeInOut 3s ease-in-out;
+            `;
+
+            // Add keyframes for animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translateY(-10px); }
+                    10% { opacity: 1; transform: translateY(0); }
+                    90% { opacity: 1; transform: translateY(0); }
+                    100% { opacity: 0; transform: translateY(-10px); }
+                }
+            `;
+            document.head.appendChild(style);
+
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Remove after animation completes
+            setTimeout(() => {
+                notification.remove();
+                style.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>
