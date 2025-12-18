@@ -7,6 +7,9 @@
     <title>資助中學查詢系統</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -242,7 +245,7 @@
         .category-content.active {
             padding: 10px;
             overflow-y: auto;
-            min-height: 300px;
+            min-height: fit-content;
         }
 
         .facility-item {
@@ -649,6 +652,18 @@
             font-size: 0.75rem;
             margin-left: 8px;
         }
+
+        /* School ranking badge */
+        .ranking-badge {
+            display: inline-block;
+            background-color: #ff6b6b;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
     </style>
 </head>
 
@@ -784,6 +799,7 @@
         let selectedSchool = null;
         let allSchools = [];
         let groupedData = {};
+        let schoolRankingData = {};
 
         // Add base layers
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -896,74 +912,27 @@
             });
         }
 
-        // Function to fetch secondary schools data using fetch API
-        async function fetchSecondarySchools(filters = {}) {
+        // Function to fetch secondary schools ranking data
+        async function fetchSecondarySchoolsRanking() {
             const url = 'https://data-api.hket.com/graphql';
 
-            // Default variables
-            const defaultVariables = {
-                banding: null,
-                district: null,
-                gender: null,
-                keyword: "",
-                language: null,
-                internationalCourse: null,
-                limit: 600,
-                page: 0,
-                religion: null,
-                schoolType: null
-            };
-
-            // Merge provided filters with defaults
-            const variables = { ...defaultVariables, ...filters };
-
-            // GraphQL query (same as your provided query)
             const query = `
-query (
-    $banding: String
-    $district: String
-    $gender: String
-    $keyword: String
-    $language: String
-    $internationalCourse: String
-    $limit: Int
-    $page: Int
-    $religion: String
-    $schoolType: String
-) {
-    secondarySchoolsByAdvancedSearch(
-        banding: $banding
-        district: $district
-        gender: $gender
-        keyword: $keyword
-        language: $language
-        internationalCourse: $internationalCourse
-        limit: $limit
-        page: $page
-        religion: $religion
-        schoolType: $schoolType
-    ) {
-        pageSize
-        currentPage
-        totalPages
-        totalRecords
-        items {
-            id
-            badge
-            banding
-            district
-            gender
-            language
-            religion
-            schoolLevel
-            schoolName
-            schoolType
-        }
-    }
-}`;
+                query {
+                    secondarySchoolsByAdvancedSearch(
+                        limit: 600,
+                        page: 0
+                    ) {
+                        items {
+                            id
+                            schoolName
+                            banding
+                            badge
+                        }
+                    }
+                }
+            `;
 
             try {
-                // Using fetch API (not axios)
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
@@ -971,8 +940,7 @@ query (
                         'X-Api-Key': 'da2-zoo453hzzfh4dfqe5i6s7cyyey'
                     },
                     body: JSON.stringify({
-                        query: query,
-                        variables: variables
+                        query: query
                     })
                 });
 
@@ -988,16 +956,19 @@ query (
                     throw new Error('GraphQL query failed');
                 }
 
-                return data.data.secondarySchoolsByAdvancedSearch.items.map(e => {
-                    return {
-                        name: e.schoolName,
-                        學校排名: e.banding,
-                        校徽: `https://topschool.hket.com/store/school/secondary/${e.id}/${e.badge}`,
+                // Transform data into a lookup object for quick access
+                const rankingData = {};
+                data.data.secondarySchoolsByAdvancedSearch.items.forEach(school => {
+                    rankingData[school.schoolName] = {
+                        banding: school.banding,
+                        badgeUrl: `https://topschool.hket.com/store/school/secondary/${school.id}/${school.badge}`
                     };
                 });
+
+                return rankingData;
             } catch (error) {
-                console.error('Error fetching secondary schools:', error);
-                throw error;
+                console.error('Error fetching school ranking data:', error);
+                return {};
             }
         }
 
@@ -1007,6 +978,9 @@ query (
             loadingIndicator.style.display = 'block';
 
             try {
+                // Fetch school ranking data first
+                schoolRankingData = await fetchSecondarySchoolsRanking();
+
                 // Using the specified API endpoint for aided secondary schools
                 const apiUrl = 'https://portal.csdi.gov.hk/server/services/common/edb_rcd_1629267205213_53323/MapServer/WFSServer?service=wfs&request=GetFeature&typenames=AIDED_SES&outputFormat=geojson';
 
@@ -1019,15 +993,18 @@ query (
                 const data = await response.json();
                 allSchools = data.features || [];
 
-                const otherData = await fetchSecondarySchools();
+                // Enhance school data with ranking information
                 allSchools.forEach(school => {
-                    const e = otherData.filter(other => other.name == school.properties["設施名稱"]);
-                    if (e.length != 0)
-                        school.properties = {
-                            ...school.properties,
-                            學校排名: e[0].學校排名,
-                            校徽: e[0].校徽,
-                        };
+                    const schoolName = school.properties["設施名稱"];
+                    const rankingInfo = schoolRankingData[schoolName];
+
+                    if (rankingInfo) {
+                        school.properties.學校排名 = rankingInfo.banding;
+                        school.properties.校徽 = rankingInfo.badgeUrl;
+                    } else {
+                        school.properties.學校排名 = "N/A";
+                        school.properties.校徽 = null;
+                    }
                 });
 
                 // Group schools by district -> finance type -> category -> schools
@@ -1235,6 +1212,11 @@ query (
 
                         // Add school items
                         const schoolsContainer = document.createElement('div');
+                        // Sort schools by name
+                        category.schools.sort((a, b) => {
+                            return a.properties.設施名稱.localeCompare(b.properties.設施名稱);
+                        });
+
                         category.schools.forEach(school => {
                             const schoolItem = createSchoolItem(school);
                             schoolsContainer.appendChild(schoolItem);
@@ -1260,8 +1242,16 @@ query (
             schoolItem.className = 'facility-item';
             schoolItem.dataset.objectId = props.OBJECTID;
 
+            // Create ranking badge if available
+            const rankingBadge = props.學校排名 && props.學校排名 !== "N/A"
+                ? `<span class="ranking-badge">Band ${props.學校排名}</span>`
+                : '';
+
             schoolItem.innerHTML = `
-                <div class="facility-name">${props.設施名稱}</div>
+                <div class="facility-name">
+                    ${props.設施名稱}
+                    ${rankingBadge}
+                </div>
                 <div class="facility-details">
                     <div class="facility-detail-item">
                         <i class="fas fa-map-marker-alt"></i>
@@ -1324,15 +1314,35 @@ query (
                 const props = school.properties;
                 const coords = school.geometry.coordinates;
 
+                // Determine marker color based on ranking
+                let markerColor = '#ff6b6b'; // Default color
+                if (props.學校排名 === '1') {
+                    markerColor = '#ff0000'; // Band 1 - Red
+                } else if (props.學校排名 === '2') {
+                    markerColor = '#ff9900'; // Band 2 - Orange
+                } else if (props.學校排名 === '3') {
+                    markerColor = '#ffcc00'; // Band 3 - Yellow
+                }
+
                 // Create marker
                 const marker = L.circleMarker([coords[1], coords[0]], {
-                    radius: 10,
-                    fillColor: '#ff6b6b',
-                    color: '#c0392b',
-                    weight: 2,
+                    radius: 8,
+                    fillColor: markerColor,
+                    color: '#333',
+                    weight: 1,
                     opacity: 1,
                     fillOpacity: 0.8
                 });
+
+                // Create tooltip with basic info
+                marker.bindTooltip(props.設施名稱, {
+                    permanent: false,
+                    direction: 'top'
+                });
+
+                // Create popup content
+                const popupContent = createPopupContent(props);
+                marker.bindPopup(popupContent);
 
                 // Add click event
                 marker.on('click', function () {
@@ -1343,13 +1353,51 @@ query (
                         item.classList.remove('active');
                         if (parseInt(item.dataset.objectId) === props.OBJECTID) {
                             item.classList.add('active');
-                            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            // Scroll to the item
+                            const container = document.getElementById('schoolsList');
+                            const itemTop = item.offsetTop;
+                            const containerTop = container.scrollTop;
+                            const containerHeight = container.clientHeight;
+
+                            if (itemTop < containerTop || itemTop > containerTop + containerHeight) {
+                                item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
                         }
                     });
                 });
 
                 schoolsLayer.addLayer(marker);
             });
+        }
+
+        // Create popup content for marker
+        function createPopupContent(props) {
+            const badgeImg = props.校徽 ? `<img src="${props.校徽}" style="width:50px; height:50px; object-fit:contain; margin-right:10px; float:left;" />` : '';
+            const rankingInfo = props.學校排名 && props.學校排名 !== "N/A" ? `(Band ${props.學校排名})` : '';
+
+            return `
+                <div style="min-width: 250px;">
+                    <div class="d-flex flex-row" style="margin-bottom: 10px;">
+                        ${badgeImg}
+                        <div>
+                            <div style="font-weight: bold; color: #2c3e50; font-size: 1.1em; overflow: hidden;">
+                            ${props.設施名稱}<br/>${rankingInfo}
+                            </div>
+                            <div><strong>宗教:</strong> ${props.宗教}</div>
+                            <div><strong>授課時間:</strong> ${props.學校授課時間}</div>
+                            <div><strong>學生性別:</strong> ${props.就讀學生性別}</div>
+                            <div><strong>資助種類:</strong> ${props.資助種類}</div>
+                            <div><strong>地區:</strong> ${props.分區}</div>
+                        </div>
+                    </div>
+                    <div><strong>地址:</strong> ${props.地址}</div>
+                    <div><strong>聯絡電話:</strong> <a href="tel:${props.聯絡電話}">${props.聯絡電話 || '未提供'}</a></div>
+                    <div><strong>網頁:</strong> ${props.網頁 ? `<a href="${props.網頁}" target="_blank">${props.網頁}</a>` : '未提供'}</div>
+                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
+                        <small class="text-success fst-italic"><strong>最後更新:</strong> ${props.Last_Updated_Date___最後更新日期 || '未提供'}</small>
+                    </div>
+                </div>
+            `;
         }
 
         // Select and highlight a school
@@ -1363,38 +1411,36 @@ query (
                 selectedSchool = null;
             }
 
+            // Determine marker color based on ranking
+            let markerColor = '#4a90e2'; // Default selection color
+            if (props.學校排名 === '1') {
+                markerColor = '#ff3333'; // Band 1 - Bright Red
+            } else if (props.學校排名 === '2') {
+                markerColor = '#ffaa00'; // Band 2 - Bright Orange
+            } else if (props.學校排名 === '3') {
+                markerColor = '#ffdd00'; // Band 3 - Bright Yellow
+            }
+
             // Create highlighted marker
             selectedSchool = L.circleMarker([coords[1], coords[0]], {
                 radius: 12,
-                fillColor: '#4a90e2',
+                fillColor: markerColor,
                 color: '#2c6c91',
                 weight: 3,
                 opacity: 1,
                 fillOpacity: 0.9
             }).addTo(map);
 
+            // Create popup content
+            const popupContent = createPopupContent(props);
+            selectedSchool.bindPopup(popupContent).openPopup();
+
             // Pan to the selected school
             map.setView([coords[1], coords[0]], 14);
 
-            // Open popup
-            selectedSchool.bindPopup(`
-                <img src="${props.校徽}" style="width:40px" />
-                <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50; font-size: 1.1em">${props.設施名稱} (Band ${props.學校排名})</div>
-                <div><strong>地區:</strong> ${props.分區}</div>
-                <div><strong>地址:</strong> ${props.地址}</div>
-                <div><strong>宗教:</strong> ${props.宗教}</div>
-                <div><strong>授課時間:</strong> ${props.學校授課時間}</div>
-                <div><strong>學生性別:</strong> ${props.就讀學生性別}</div>
-                <div><strong>資助種類:</strong> ${props.資助種類}</div>
-                <div><strong>聯絡電話:</strong> <a href="tel:${props.聯絡電話}">${props.聯絡電話 || '未提供'}</a></div>
-                <div><strong>網頁:</strong> ${props.網頁 ? `<a href="${props.網頁}" target="_blank">${props.網頁}</a>` : '未提供'}</div>
-                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
-                    <small class="text-muted"><strong>最後更新:</strong> ${props.Last_Updated_Date___最後更新日期 || '未提供'}</small>
-                </div>
-            `).openPopup();
-
             // Show notification
-            showNotification(`已選取: ${props.設施名稱}`);
+            const rankingInfo = props.學校排名 && props.學校排名 !== "N/A" ? ` (Band ${props.學校排名})` : '';
+            showNotification(`已選取: ${props.設施名稱}${rankingInfo}`);
         }
 
         // Filter schools based on search input
@@ -1407,17 +1453,24 @@ query (
                     item.style.display = 'block';
                 });
 
+                // Show all district accordions
                 document.querySelectorAll('.district-accordion').forEach(district => {
                     district.style.display = 'block';
                 });
 
+                // Update visible count
                 document.getElementById('visibleSchools').textContent = allSchools.length;
                 return;
             }
 
             let visibleCount = 0;
 
-            // Filter school items
+            // Reset all items to hidden first
+            document.querySelectorAll('.facility-item').forEach(item => {
+                item.style.display = 'none';
+            });
+
+            // Filter and show matching items
             document.querySelectorAll('.facility-item').forEach(item => {
                 const schoolName = item.querySelector('.facility-name').textContent.toLowerCase();
                 const details = item.querySelector('.facility-details').textContent.toLowerCase();
@@ -1427,34 +1480,17 @@ query (
                     visibleCount++;
 
                     // Ensure all parent accordions are visible and expanded
-                    let currentElement = item.parentElement;
-                    while (currentElement) {
-                        if (currentElement.classList.contains('category-content')) {
-                            const categoryHeader = currentElement.previousElementSibling;
-                            if (categoryHeader && !categoryHeader.classList.contains('active')) {
-                                categoryHeader.classList.add('active');
-                                currentElement.classList.add('active');
-                                categoryHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
-                            }
-                        } else if (currentElement.classList.contains('finance-content')) {
-                            const financeHeader = currentElement.previousElementSibling;
-                            if (financeHeader && !financeHeader.classList.contains('active')) {
-                                financeHeader.classList.add('active');
-                                currentElement.classList.add('active');
-                                financeHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
-                            }
-                        } else if (currentElement.classList.contains('district-content')) {
-                            const districtHeader = currentElement.previousElementSibling;
-                            if (districtHeader && !districtHeader.classList.contains('active')) {
-                                districtHeader.classList.add('active');
-                                currentElement.classList.add('active');
-                                districtHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
-                            }
-                        }
-                        currentElement = currentElement.parentElement;
-                    }
+                    expandParentAccordions(item);
+                }
+            });
+
+            // Hide districts with no visible facilities
+            document.querySelectorAll('.district-accordion').forEach(district => {
+                const visibleItems = district.querySelectorAll('.facility-item[style="display: block"]');
+                if (visibleItems.length === 0) {
+                    district.style.display = 'none';
                 } else {
-                    item.style.display = 'none';
+                    district.style.display = 'block';
                 }
             });
 
@@ -1462,10 +1498,47 @@ query (
             document.getElementById('visibleSchools').textContent = visibleCount;
         }
 
+        // Helper function to expand parent accordions
+        function expandParentAccordions(element) {
+            let currentElement = element.parentElement;
+            while (currentElement) {
+                if (currentElement.classList.contains('category-content')) {
+                    const categoryHeader = currentElement.previousElementSibling;
+                    if (categoryHeader && !categoryHeader.classList.contains('active')) {
+                        categoryHeader.classList.add('active');
+                        currentElement.classList.add('active');
+                        categoryHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                    }
+                } else if (currentElement.classList.contains('finance-content')) {
+                    const financeHeader = currentElement.previousElementSibling;
+                    if (financeHeader && !financeHeader.classList.contains('active')) {
+                        financeHeader.classList.add('active');
+                        currentElement.classList.add('active');
+                        financeHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                    }
+                } else if (currentElement.classList.contains('district-content')) {
+                    const districtHeader = currentElement.previousElementSibling;
+                    if (districtHeader && !districtHeader.classList.contains('active')) {
+                        districtHeader.classList.add('active');
+                        currentElement.classList.add('active');
+                        districtHeader.querySelector('.fa-chevron-down').style.transform = 'rotate(180deg)';
+                    }
+                }
+                currentElement = currentElement.parentElement;
+            }
+        }
+
         // Show temporary notification
         function showNotification(message) {
+            // Remove existing notification if present
+            const existingNotification = document.querySelector('.temp-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+
             // Create notification element
             const notification = document.createElement('div');
+            notification.className = 'temp-notification';
             notification.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -1478,30 +1551,31 @@ query (
                 z-index: 10000;
                 font-weight: 500;
                 max-width: 300px;
-                animation: fadeInOut 3s ease-in-out;
+                animation: fadeInOut 3s ease-in-out forwards;
             `;
-
-            // Add keyframes for animation
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes fadeInOut {
-                    0% { opacity: 0; transform: translateY(-10px); }
-                    10% { opacity: 1; transform: translateY(0); }
-                    90% { opacity: 1; transform: translateY(0); }
-                    100% { opacity: 0; transform: translateY(-10px); }
-                }
-            `;
-            document.head.appendChild(style);
 
             notification.textContent = message;
             document.body.appendChild(notification);
 
             // Remove after animation completes
             setTimeout(() => {
-                notification.remove();
-                style.remove();
+                if (notification.parentNode) {
+                    notification.remove();
+                }
             }, 3000);
         }
+
+        // Add fadeInOut animation to head
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeInOut {
+                0% { opacity: 0; transform: translateY(-10px); }
+                10% { opacity: 1; transform: translateY(0); }
+                90% { opacity: 1; transform: translateY(0); }
+                100% { opacity: 0; transform: translateY(-10px); }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 
