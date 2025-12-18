@@ -680,13 +680,14 @@
 
         <div class="accordion-panel" id="accordionPanel">
             <div class="accordion">
+
                 <!-- Schools List -->
                 <div class="accordion-item">
-                    <div class="accordion-header active" id="headerSchools">
+                    <div class="accordion-header" id="headerSchools">
                         <span><i class="fas fa-list"></i> 資助中學列表</span>
                         <i class="fas fa-chevron-down"></i>
                     </div>
-                    <div class="accordion-content active" id="contentSchools">
+                    <div class="accordion-content" id="contentSchools">
                         <div class="search-box">
                             <input type="text" id="searchInput" class="search-input" placeholder="搜尋學校名稱或地址...">
                         </div>
@@ -755,19 +756,29 @@
                             </button>
                         </div>
 
-                        <div class="legend">
-                            <label><i class="fas fa-layer-group"></i> 圖例</label>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background-color: #ff6b6b;"></div>
-                                <span>資助中學</span>
-                            </div>
-                            <div class="legend-item">
-                                <div class="legend-color" style="background-color: #4a90e2;"></div>
-                                <span>已選取學校</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
+
+                <div class="legend">
+                    <label class="mb-2"><i class="fas fa-layer-group"></i> 圖例</label>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #84e89f;"></div>
+                        <span>Band 1 學校</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #ff9900;"></div>
+                        <span>Band 2 學校</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #f4440f;"></div>
+                        <span>Band 3 學校</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: #4a90e2;"></div>
+                        <span>已選取學校</span>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -1314,17 +1325,19 @@
                 const props = school.properties;
                 const coords = school.geometry.coordinates;
 
-                // Determine marker color based on ranking
-                let markerColor = '#ff6b6b'; // Default color
-                if (props.學校排名 === '1') {
-                    markerColor = '#ff0000'; // Band 1 - Red
-                } else if (props.學校排名 === '2') {
-                    markerColor = '#ff9900'; // Band 2 - Orange
-                } else if (props.學校排名 === '3') {
-                    markerColor = '#ffcc00'; // Band 3 - Yellow
+                // 根據學校排名確定標記顏色
+                let markerColor = '#ff6b6b'; // 默認顏色（無排名或排名不是1-3）
+                const ranking = props.學校排名;
+
+                if (ranking && ranking.toString().startsWith('1')) {
+                    markerColor = '#84e89f'; // Band 1 - 紅色
+                } else if (ranking && ranking.toString().startsWith('2')) {
+                    markerColor = '#ff9900'; // Band 2 - 橙色
+                } else if (ranking && ranking.toString().startsWith('3')) {
+                    markerColor = '#f4440f'; // Band 3 - 黃色
                 }
 
-                // Create marker
+                // 創建標記
                 const marker = L.circleMarker([coords[1], coords[0]], {
                     radius: 8,
                     fillColor: markerColor,
@@ -1405,26 +1418,19 @@
             const props = school.properties;
             const coords = school.geometry.coordinates;
 
+            // 確定選中標記的顏色（使用統一的選中顏色）
+            const selectedMarkerColor = '#4a90e2'; // 已選取學校 - 藍色
+
             // Clear previous selection
             if (selectedSchool) {
                 map.removeLayer(selectedSchool);
                 selectedSchool = null;
             }
 
-            // Determine marker color based on ranking
-            let markerColor = '#4a90e2'; // Default selection color
-            if (props.學校排名 === '1') {
-                markerColor = '#ff3333'; // Band 1 - Bright Red
-            } else if (props.學校排名 === '2') {
-                markerColor = '#ffaa00'; // Band 2 - Bright Orange
-            } else if (props.學校排名 === '3') {
-                markerColor = '#ffdd00'; // Band 3 - Bright Yellow
-            }
-
-            // Create highlighted marker
+            // 創建高亮標記
             selectedSchool = L.circleMarker([coords[1], coords[0]], {
                 radius: 12,
-                fillColor: markerColor,
+                fillColor: selectedMarkerColor,
                 color: '#2c6c91',
                 weight: 3,
                 opacity: 1,
