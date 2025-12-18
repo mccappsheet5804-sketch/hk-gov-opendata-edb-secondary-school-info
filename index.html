@@ -896,6 +896,111 @@
             });
         }
 
+        // Function to fetch secondary schools data using fetch API
+        async function fetchSecondarySchools(filters = {}) {
+            const url = 'https://data-api.hket.com/graphql';
+
+            // Default variables
+            const defaultVariables = {
+                banding: null,
+                district: null,
+                gender: null,
+                keyword: "",
+                language: null,
+                internationalCourse: null,
+                limit: 600,
+                page: 0,
+                religion: null,
+                schoolType: null
+            };
+
+            // Merge provided filters with defaults
+            const variables = { ...defaultVariables, ...filters };
+
+            // GraphQL query (same as your provided query)
+            const query = `
+query (
+    $banding: String
+    $district: String
+    $gender: String
+    $keyword: String
+    $language: String
+    $internationalCourse: String
+    $limit: Int
+    $page: Int
+    $religion: String
+    $schoolType: String
+) {
+    secondarySchoolsByAdvancedSearch(
+        banding: $banding
+        district: $district
+        gender: $gender
+        keyword: $keyword
+        language: $language
+        internationalCourse: $internationalCourse
+        limit: $limit
+        page: $page
+        religion: $religion
+        schoolType: $schoolType
+    ) {
+        pageSize
+        currentPage
+        totalPages
+        totalRecords
+        items {
+            id
+            badge
+            banding
+            district
+            gender
+            language
+            religion
+            schoolLevel
+            schoolName
+            schoolType
+        }
+    }
+}`;
+
+            try {
+                // Using fetch API (not axios)
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Api-Key': 'da2-zoo453hzzfh4dfqe5i6s7cyyey'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        variables: variables
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Check for GraphQL errors
+                if (data.errors) {
+                    console.error('GraphQL Errors:', data.errors);
+                    throw new Error('GraphQL query failed');
+                }
+
+                return data.data.secondarySchoolsByAdvancedSearch.items.map(e => {
+                    return {
+                        name: e.schoolName,
+                        學校排名: e.banding,
+                        校徽: `https://topschool.hket.com/store/school/secondary/${e.id}/${e.badge}`,
+                    };
+                });
+            } catch (error) {
+                console.error('Error fetching secondary schools:', error);
+                throw error;
+            }
+        }
+
         // Load Schools data from the WFS service
         async function loadSchoolsData() {
             const loadingIndicator = document.getElementById('loadingIndicator');
@@ -913,6 +1018,17 @@
 
                 const data = await response.json();
                 allSchools = data.features || [];
+
+                const otherData = await fetchSecondarySchools();
+                allSchools.forEach(school => {
+                    const e = otherData.filter(other => other.name == school.properties["設施名稱"]);
+                    if (e.length != 0)
+                        school.properties = {
+                            ...school.properties,
+                            學校排名: e[0].學校排名,
+                            校徽: e[0].校徽,
+                        };
+                });
 
                 // Group schools by district -> finance type -> category -> schools
                 groupSchoolsByHierarchy();
@@ -942,7 +1058,7 @@
                 const props = school.properties;
                 const district = props.分區 || '未分類';
                 const financeType = props.資助種類 || '未分類';
-                
+
                 // Create category string combining 宗教, 學校授課時間, 就讀學生性別
                 const religion = props.宗教 || '未指定';
                 const session = props.學校授課時間 || '未指定';
@@ -1004,7 +1120,7 @@
 
             sortedDistricts.forEach(districtName => {
                 const district = groupedData[districtName];
-                
+
                 // Create district accordion item
                 const districtAccordion = document.createElement('div');
                 districtAccordion.className = 'district-accordion';
@@ -1040,10 +1156,10 @@
                 // Add finance type accordions
                 const financeTypesContainer = document.createElement('div');
                 const financeTypeNames = Object.keys(district.financeTypes).sort();
-                
+
                 financeTypeNames.forEach(financeTypeName => {
                     const financeType = district.financeTypes[financeTypeName];
-                    
+
                     // Create finance type accordion item
                     const financeAccordion = document.createElement('div');
                     financeAccordion.className = 'finance-accordion';
@@ -1080,10 +1196,10 @@
                     // Add category accordions
                     const categoriesContainer = document.createElement('div');
                     const categoryNames = Object.keys(financeType.categories).sort();
-                    
+
                     categoryNames.forEach(categoryName => {
                         const category = financeType.categories[categoryName];
-                        
+
                         // Create category accordion item
                         const categoryAccordion = document.createElement('div');
                         categoryAccordion.className = 'category-accordion';
@@ -1218,24 +1334,6 @@
                     fillOpacity: 0.8
                 });
 
-                // Create popup content
-                const popupContent = `
-                    <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50">${props.設施名稱}</div>
-                    <div><strong>地區:</strong> ${props.分區}</div>
-                    <div><strong>地址:</strong> ${props.地址}</div>
-                    <div><strong>宗教:</strong> ${props.宗教}</div>
-                    <div><strong>授課時間:</strong> ${props.學校授課時間}</div>
-                    <div><strong>學生性別:</strong> ${props.就讀學生性別}</div>
-                    <div><strong>資助種類:</strong> ${props.資助種類}</div>
-                    <div><strong>聯絡電話:</strong> ${props.聯絡電話 || '未提供'}</div>
-                    <div><strong>網頁:</strong> ${props.網頁 ? `<a href="${props.網頁}" target="_blank">${props.網頁}</a>` : '未提供'}</div>
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #eee;">
-                        <small class="text-muted"><strong>最後更新:</strong> ${props.Last_Updated_Date___最後更新日期 || '未提供'}</small>
-                    </div>
-                `;
-
-                marker.bindPopup(popupContent);
-
                 // Add click event
                 marker.on('click', function () {
                     selectSchool(school);
@@ -1280,7 +1378,8 @@
 
             // Open popup
             selectedSchool.bindPopup(`
-                <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50; font-size: 1.1em">${props.設施名稱}</div>
+                <img src="${props.校徽}" style="width:40px" />
+                <div style="font-weight: bold; margin-bottom: 5px; color: #2c3e50; font-size: 1.1em">${props.設施名稱} (Band ${props.學校排名})</div>
                 <div><strong>地區:</strong> ${props.分區}</div>
                 <div><strong>地址:</strong> ${props.地址}</div>
                 <div><strong>宗教:</strong> ${props.宗教}</div>
